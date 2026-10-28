@@ -29,13 +29,20 @@
   .tab-btn:hover { background: #e5e7eb; color: #1f2933; }
   .tab-btn.active { background: #2563eb; color: #fff; }
 
-  /* Плашка о закрытии приема */
+  /* Плашки */
   .closed-alert {
     background: #fee2e2; border: 1px solid #fecaca; color: #991b1b;
     padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: 600;
     display: flex; align-items: center; gap: 8px; font-size: 15px;
   }
   .closed-alert.hidden { display: none; }
+  
+  .pending-alert {
+    background: #fef3c7; border: 1px solid #fcd34d; color: #92400e;
+    padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; font-size: 15px;
+  }
+  .pending-alert.hidden { display: none; }
 
   /* Блоки регистрации */
   .login-box {
@@ -147,6 +154,11 @@
   .header-bar h2 { margin: 0; font-size: 18px; }
   .header-bar .user-info { font-size: 14px; color: #6b7280; }
   .header-bar .user-info strong { color: #1e3a8a; }
+  
+  /* Подвкладки */
+  .sub-tabs { display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+  .sub-tab-btn { background: none; border: none; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; padding: 6px 12px; border-radius: 4px; }
+  .sub-tab-btn.active { background: #e0e7ff; color: #1e3a8a; }
 
   /* Заявки */
   .request {
@@ -194,6 +206,16 @@
   .admin-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
   .admin-controls input { width: auto; }
   .admin-controls label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px; }
+  
+  /* Список на модерацию */
+  .moderation-user {
+    background: #fff; padding: 12px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.05); border-left: 4px solid #f59e0b;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .moderation-user.approved { border-left-color: #10b981; }
+  .moderation-user.rejected { border-left-color: #ef4444; opacity: 0.6; }
+  .moderation-user .info { flex: 1; min-width: 200px; }
+  .moderation-user .btns { display: flex; gap: 6px; }
 
   /* Тост и модалка */
   .toast {
@@ -227,6 +249,11 @@
   <div id="globalClosedAlert" class="closed-alert hidden">
     <span>⛔</span> Прием заявок временно приостановлен Главным инженером.
   </div>
+  
+  <!-- Плашка ожидания (мастер) -->
+  <div id="globalPendingAlert" class="pending-alert hidden">
+    <span>⏳</span> Ваш аккаунт находится на проверке у Главного инженера. Ожидайте подтверждения.
+  </div>
 
   <!-- Вкладки -->
   <div class="tabs">
@@ -236,11 +263,11 @@
     <button class="tab-btn" id="tabAdmin">🔐 Панель управления</button>
   </div>
 
-  <!-- ЭКРАН 1: МАСТЕР (ВХОД И РАБОТА) -->
+  <!-- ЭКРАН 1: МАСТЕР -->
   <div id="masterView" class="hidden">
     <div id="masterLoginBlock" class="login-box">
       <h2>Вход для мастера</h2>
-      <p>Введите ваши данные, чтобы подавать заявки и видеть их статус.</p>
+      <p>Введите ваши данные. При первом входе потребуется подтверждение Главного инженера.</p>
       <input type="text" id="loginMasterName" placeholder="Ваше имя (мастер)" autocomplete="off">
       <input type="tel" id="loginMasterPhone" placeholder="Ваш номер телефона" autocomplete="off">
       <select id="loginMasterBrigade">
@@ -258,42 +285,54 @@
         <button class="btn gray small" id="logoutMasterBtn">Выйти</button>
       </div>
 
-      <div class="card">
-        <form id="requestForm">
-          <div class="step">
-            <div class="step-header">
-              <div class="step-number">1</div>
-              <div class="step-title">Выберите службу</div>
-            </div>
-            <div class="service-picker" id="servicePicker"></div>
-          </div>
-
-          <div class="step">
-            <div class="step-header">
-              <div class="step-number">2</div>
-              <div class="step-title">Оформите заявку</div>
-            </div>
-            <div class="form-row">
-              <textarea id="reqDesc" placeholder="Опишите проблему..."></textarea>
-            </div>
-          </div>
-
-          <div style="margin-top: 16px;">
-            <button class="btn block" type="submit" id="submitBtn">Отправить заявку</button>
-          </div>
-        </form>
+      <div class="sub-tabs">
+        <button class="sub-tab-btn active" id="subTabNewRequest">Подать заявку</button>
+        <button class="sub-tab-btn" id="subTabMyRequests">Мои заявки</button>
       </div>
 
-      <h2>Все службы (нажмите для просмотра)</h2>
-      <div class="services" id="masterServicesGrid"></div>
+      <div id="newRequestBlock">
+        <div class="card">
+          <form id="requestForm">
+            <div class="step">
+              <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Выберите службу</div>
+              </div>
+              <div class="service-picker" id="servicePicker"></div>
+            </div>
+
+            <div class="step">
+              <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Оформите заявку</div>
+              </div>
+              <div class="form-row">
+                <textarea id="reqDesc" placeholder="Опишите проблему..."></textarea>
+              </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <button class="btn block" type="submit" id="submitBtn">Отправить заявку</button>
+            </div>
+          </form>
+        </div>
+
+        <h2>Все службы (нажмите для просмотра)</h2>
+        <div class="services" id="masterServicesGrid"></div>
+      </div>
+
+      <div id="myRequestsBlock" class="hidden">
+        <h2>Мои заявки</h2>
+        <div id="myRequestsList"></div>
+      </div>
     </div>
   </div>
 
-  <!-- ЭКРАН 2: СЛУЖБА (ВХОД) -->
+  <!-- ЭКРАН 2: СЛУЖБА -->
   <div id="serviceView" class="hidden">
     <div id="serviceLoginBlock" class="login-box">
       <h2>Вход для службы</h2>
-      <p>Введите ваши данные, чтобы видеть заявки и подтверждать их выполнение.</p>
+      <p>Введите данные. При первом входе потребуется подтверждение Главного инженера.</p>
       <input type="text" id="loginServiceName" placeholder="Ваше имя (сотрудник)" autocomplete="off">
       <input type="tel" id="loginServicePhone" placeholder="Ваш номер телефона" autocomplete="off">
       <select id="loginServiceRole">
@@ -311,12 +350,19 @@
         <button class="btn gray small" id="logoutServiceBtn">Выйти</button>
       </div>
       
-      <h2>Все службы (нажмите для просмотра)</h2>
-      <div class="services" id="serviceServicesGrid"></div>
+      <!-- Плашка для неподтвержденной службы -->
+      <div id="servicePendingAlert" class="pending-alert hidden" style="margin-top: 10px;">
+        <span>⏳</span> Ваш аккаунт службы находится на проверке. Вы не можете просматривать и выполнять заявки, пока Главный инженер не подтвердит вас.
+      </div>
+
+      <div id="serviceContentBlock">
+        <h2>Все службы (нажмите для просмотра)</h2>
+        <div class="services" id="serviceServicesGrid"></div>
+      </div>
     </div>
   </div>
 
-  <!-- ЭКРАН 3: ПРОСМОТР ЗАЯВОК КОНКРЕТНОЙ СЛУЖБЫ -->
+  <!-- ЭКРАН 3: ПРОСМОТР ЗАЯВОК СЛУЖБЫ -->
   <div id="requestsDetailView" class="hidden">
     <div class="back"><button class="btn gray" id="backFromDetail">← Назад</button></div>
     <h1 id="detailTitle"></h1>
@@ -363,50 +409,69 @@
         <button class="btn gray small" id="logoutAdminBtn">Выйти</button>
       </div>
 
-      <div class="card">
-        <h2>Управление приемом заявок</h2>
-        <div class="admin-controls">
-          <div>
-            <label>Интервал 1 (с)</label>
-            <input type="number" id="adminStart1" min="0" max="23" style="width:70px;">
-          </div>
-          <div>
-            <label>Интервал 1 (до)</label>
-            <input type="number" id="adminEnd1" min="0" max="23" style="width:70px;">
-          </div>
-          <div style="width:20px;"></div>
-          <div>
-            <label>Интервал 2 (с)</label>
-            <input type="number" id="adminStart2" min="0" max="23" style="width:70px;">
-          </div>
-          <div>
-            <label>Интервал 2 (до)</label>
-            <input type="number" id="adminEnd2" min="0" max="23" style="width:70px;">
-          </div>
-          <button class="btn small" id="saveScheduleBtn">Сохранить</button>
-          <button class="btn red small" id="toggleGlobalBtn">Остановить прием</button>
-        </div>
-        <div style="font-size:13px; color:#4b5563; margin-top:10px;">
-          Статус: <strong id="adminStatusText">Загрузка...</strong>
+      <!-- Подвкладки админа -->
+      <div class="sub-tabs" style="margin-bottom: 20px;">
+        <button class="sub-tab-btn active" id="adminTabUsers">👥 Пользователи</button>
+        <button class="sub-tab-btn" id="adminTabRequests">📝 Заявки</button>
+      </div>
+
+      <!-- Блок пользователей -->
+      <div id="adminUsersBlock">
+        <div class="card" style="border-left: 4px solid #f59e0b;">
+          <h2>Реестр пользователей</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Подтверждайте новых пользователей. Если пользователь сменил бригаду/службу, статус сохраняется.</p>
+          <div id="moderationList"></div>
         </div>
       </div>
 
-      <h2>Все заявки (полный доступ)</h2>
-      <div id="adminRequestsList"></div>
+      <!-- Блок заявок -->
+      <div id="adminRequestsBlock" class="hidden">
+        <div class="card">
+          <h2>Управление приемом заявок</h2>
+          <div class="admin-controls">
+            <div>
+              <label>Интервал 1 (с)</label>
+              <input type="number" id="adminStart1" min="0" max="23" style="width:70px;">
+            </div>
+            <div>
+              <label>Интервал 1 (до)</label>
+              <input type="number" id="adminEnd1" min="0" max="23" style="width:70px;">
+            </div>
+            <div style="width:20px;"></div>
+            <div>
+              <label>Интервал 2 (с)</label>
+              <input type="number" id="adminStart2" min="0" max="23" style="width:70px;">
+            </div>
+            <div>
+              <label>Интервал 2 (до)</label>
+              <input type="number" id="adminEnd2" min="0" max="23" style="width:70px;">
+            </div>
+            <button class="btn small" id="saveScheduleBtn">Сохранить</button>
+            <button class="btn red small" id="toggleGlobalBtn">Остановить прием</button>
+          </div>
+          <div style="font-size:13px; color:#4b5563; margin-top:10px;">
+            Статус: <strong id="adminStatusText">Загрузка...</strong>
+          </div>
+        </div>
+
+        <h2>Все заявки (полный доступ)</h2>
+        <div id="adminRequestsList"></div>
+      </div>
+
     </div>
   </div>
 
 </div>
 
 <!-- Модальные окна -->
-<div class="modal-overlay hidden" id="servicePasswordModal">
+<div class="modal-overlay hidden" id="serviceCodeModal">
   <div class="modal">
     <h3>Подтверждение службы</h3>
-    <p>Введите пароль службы (1234), чтобы отметить выполнение.</p>
-    <input type="password" id="servicePasswordInput" placeholder="Пароль" autocomplete="off">
+    <p>Введите код службы.</p>
+    <input type="password" id="serviceCodeInput" placeholder="Код службы" autocomplete="off">
     <div class="modal-actions">
-      <button class="btn gray small" id="cancelServicePassword">Отмена</button>
-      <button class="btn orange small" id="confirmServicePassword">Подтвердить</button>
+      <button class="btn gray small" id="cancelServiceCode">Отмена</button>
+      <button class="btn orange small" id="confirmServiceCode">Подтвердить</button>
     </div>
   </div>
 </div>
@@ -454,6 +519,9 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getDatabase, ref, push, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
+  // =====================================================================
+  // НОВОПОРТОВСКИЙ ПРОЕКТ
+  // =====================================================================
   const firebaseConfig = {
     apiKey: "AIzaSyCS_WhNLzKoefbkILblOz3-LfWC85Ntoc8",
     authDomain: "novoport-zayavki.firebaseapp.com",
@@ -470,7 +538,7 @@
 
   // ====== НАСТРОЙКИ (НОВОПОРТОВСКИЙ) ======
   var CHIEF_CODE = '1111';           // Код Главного энергетика
-  var SERVICE_PASSWORD = '1234';     // Пароль службы
+  var SERVICE_PASSWORD = '1234';     // Код службы
   var ADMIN_CODE = '3452admin';      // Пароль Главного инженера
 
   var SERVICES = [
@@ -494,6 +562,7 @@
   ];
 
   var allRequests = [];
+  var allUsers = [];
   var settings = { 
     isManuallyClosed: false,
     intervals: [
@@ -509,8 +578,8 @@
   var pendingNewRequest = null;
   var pendingTransferId = null;
   
-  var loggedMaster = { name: '', phone: '', brigade: '' };
-  var loggedService = { name: '', phone: '', role: '' };
+  var loggedMaster = { name: '', phone: '', brigade: '', status: 'pending' };
+  var loggedService = { name: '', phone: '', role: '', status: 'pending' };
   
   var currentDetailServiceId = '';
   var currentDetailViewMode = 'master';
@@ -531,18 +600,33 @@
   var masterWorkBlock = document.getElementById('masterWorkBlock');
   var loggedMasterBrigade = document.getElementById('loggedMasterBrigade');
   var loggedMasterName = document.getElementById('loggedMasterName');
+  
+  var subTabNewRequest = document.getElementById('subTabNewRequest');
+  var subTabMyRequests = document.getElementById('subTabMyRequests');
+  var newRequestBlock = document.getElementById('newRequestBlock');
+  var myRequestsBlock = document.getElementById('myRequestsBlock');
+  var myRequestsList = document.getElementById('myRequestsList');
 
   var serviceLoginBlock = document.getElementById('serviceLoginBlock');
   var serviceWorkBlock = document.getElementById('serviceWorkBlock');
+  var servicePendingAlert = document.getElementById('servicePendingAlert');
+  var serviceContentBlock = document.getElementById('serviceContentBlock');
   var loggedServiceName = document.getElementById('loggedServiceName');
   var loggedServicePhone = document.getElementById('loggedServicePhone');
 
   var adminLoginBlock = document.getElementById('adminLoginBlock');
   var adminWorkBlock = document.getElementById('adminWorkBlock');
+  var adminUsersBlock = document.getElementById('adminUsersBlock');
+  var adminRequestsBlock = document.getElementById('adminRequestsBlock');
+  var adminTabUsers = document.getElementById('adminTabUsers');
+  var adminTabRequests = document.getElementById('adminTabRequests');
+  
   var adminRequestsList = document.getElementById('adminRequestsList');
   var adminStatusText = document.getElementById('adminStatusText');
   var globalClosedAlert = document.getElementById('globalClosedAlert');
+  var globalPendingAlert = document.getElementById('globalPendingAlert');
   var submitBtn = document.getElementById('submitBtn');
+  var moderationList = document.getElementById('moderationList');
 
   var masterServicesGrid = document.getElementById('masterServicesGrid');
   var serviceServicesGrid = document.getElementById('serviceServicesGrid');
@@ -553,10 +637,10 @@
 
   var toastEl = document.getElementById('toast');
   
-  var servicePasswordModal = document.getElementById('servicePasswordModal');
-  var servicePasswordInput = document.getElementById('servicePasswordInput');
-  var confirmServicePasswordBtn = document.getElementById('confirmServicePassword');
-  var cancelServicePasswordBtn = document.getElementById('cancelServicePassword');
+  var serviceCodeModal = document.getElementById('serviceCodeModal');
+  var serviceCodeInput = document.getElementById('serviceCodeInput');
+  var confirmServiceCodeBtn = document.getElementById('confirmServiceCode');
+  var cancelServiceCodeBtn = document.getElementById('cancelServiceCode');
   
   var chiefCodeModal = document.getElementById('chiefCodeModal');
   var chiefCodeInput = document.getElementById('chiefCodeInput');
@@ -637,12 +721,43 @@
       globalClosedAlert.classList.add('hidden');
     }
 
-    if (loggedMaster.name && !isAcceptingNow()) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Прием заявок закрыт';
-    } else {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Отправить заявку';
+    // Проверка статуса мастера
+    if (loggedMaster.name) {
+      if (loggedMaster.status === 'pending') {
+        globalPendingAlert.classList.remove('hidden');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Ожидает подтверждения';
+      } else if (loggedMaster.status === 'rejected') {
+        globalPendingAlert.classList.remove('hidden');
+        globalPendingAlert.innerHTML = '<span>⛔</span> Ваш аккаунт отклонен или удален. Обратитесь к администратору.';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Доступ закрыт';
+      } else {
+        globalPendingAlert.classList.add('hidden');
+        if (!isAcceptingNow()) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Прием заявок закрыт';
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Отправить заявку';
+        }
+      }
+    }
+
+    // Проверка статуса службы (для ее рабочего стола)
+    if (loggedService.name) {
+      if (loggedService.status !== 'approved') {
+        servicePendingAlert.classList.remove('hidden');
+        serviceContentBlock.classList.add('hidden'); // Скрываем заявки
+        if (loggedService.status === 'rejected') {
+          servicePendingAlert.innerHTML = '<span>⛔</span> Ваш аккаунт отклонен или удален. Обратитесь к администратору.';
+        } else {
+          servicePendingAlert.innerHTML = '<span>⏳</span> Ваш аккаунт службы находится на проверке. Вы не можете просматривать и выполнять заявки, пока Главный инженер не подтвердит вас.';
+        }
+      } else {
+        servicePendingAlert.classList.add('hidden');
+        serviceContentBlock.classList.remove('hidden'); // Показываем заявки
+      }
     }
   }
 
@@ -689,12 +804,35 @@
         adminWorkBlock.classList.add('hidden');
       }
     }
+    updateUIState();
   }
 
   tabMaster.addEventListener('click', function() { switchToTab('master'); });
   tabService.addEventListener('click', function() { switchToTab('service'); });
   tabHistory.addEventListener('click', function() { switchToTab('history'); });
   tabAdmin.addEventListener('click', function() { switchToTab('admin'); });
+
+  // ====== ПОДВКЛАДКИ МАСТЕРА ======
+  subTabNewRequest.addEventListener('click', function() {
+    subTabNewRequest.classList.add('active'); subTabMyRequests.classList.remove('active');
+    newRequestBlock.classList.remove('hidden'); myRequestsBlock.classList.add('hidden');
+  });
+  subTabMyRequests.addEventListener('click', function() {
+    subTabMyRequests.classList.add('active'); subTabNewRequest.classList.remove('active');
+    newRequestBlock.classList.add('hidden'); myRequestsBlock.classList.remove('hidden');
+    renderMyRequests();
+  });
+
+  // ====== ПОДВКЛАДКИ АДМИНА ======
+  adminTabUsers.addEventListener('click', function() {
+    adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active');
+    adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden');
+  });
+  adminTabRequests.addEventListener('click', function() {
+    adminTabRequests.classList.add('active'); adminTabUsers.classList.remove('active');
+    adminUsersBlock.classList.add('hidden'); adminRequestsBlock.classList.remove('hidden');
+    renderAdminRequests();
+  });
 
   // ====== АВТОЗАПОЛНЕНИЕ И АВТОВХОД ======
   function loadSavedCredentials() {
@@ -716,7 +854,7 @@
     var savedServiceActive = localStorage.getItem('logged_np_service_active');
 
     if (savedMasterActive === 'true' && mName && mPhone && mBrigade) {
-      loggedMaster = { name: mName, phone: mPhone, brigade: mBrigade };
+      loggedMaster = { name: mName, phone: mPhone, brigade: mBrigade, status: 'pending' };
       masterLoginBlock.classList.add('hidden');
       masterWorkBlock.classList.remove('hidden');
       loggedMasterBrigade.textContent = mBrigade;
@@ -725,12 +863,13 @@
       updateUIState();
       switchToTab('master');
     } else if (savedServiceActive === 'true' && sName && sPhone && sRole) {
-      loggedService = { name: sName, phone: sPhone, role: sRole };
+      loggedService = { name: sName, phone: sPhone, role: sRole, status: 'pending' };
       serviceLoginBlock.classList.add('hidden');
       serviceWorkBlock.classList.remove('hidden');
       loggedServiceName.textContent = sRole;
       loggedServicePhone.textContent = sName + ', ' + sPhone;
       renderServicesGrid(serviceServicesGrid, 'service');
+      updateUIState();
       switchToTab('service');
     } else {
       switchToTab('master');
@@ -738,7 +877,7 @@
   }
 
   // ====== ВХОД МАСТЕРА ======
-  document.getElementById('loginMasterBtn').addEventListener('click', function() {
+  document.getElementById('loginMasterBtn').addEventListener('click', async function() {
     var name = document.getElementById('loginMasterName').value.trim();
     var phone = document.getElementById('loginMasterPhone').value.trim();
     var brigade = document.getElementById('loginMasterBrigade').value;
@@ -747,14 +886,34 @@
     if (!phone) { showToast('Введите телефон', true); return; }
     if (!brigade) { showToast('Выберите бригаду', true); return; }
 
+    var existingUser = allUsers.find(function(u) { return u.phone === phone; });
+    
+    if (existingUser) {
+      if (existingUser.status === 'approved') {
+        var userRef = ref(db, 'users/' + existingUser.id);
+        await update(userRef, { name: name, brigade: brigade, role: 'master' });
+        loggedMaster = { name: name, phone: phone, brigade: brigade, status: 'approved' };
+        showToast('Вы успешно вошли (данные обновлены).');
+      } else if (existingUser.status === 'pending') {
+        loggedMaster = { name: name, phone: phone, brigade: brigade, status: 'pending' };
+        showToast('Ваш аккаунт уже на проверке.', true);
+      } else {
+        showToast('Ваш аккаунт отклонен. Обратитесь к администратору.', true);
+        return;
+      }
+    } else {
+      var newRef = push(ref(db, 'users'));
+      await set(newRef, { name: name, phone: phone, brigade: brigade, role: 'master', status: 'pending', createdAt: Date.now() });
+      loggedMaster = { name: name, phone: phone, brigade: brigade, status: 'pending' };
+      showToast('Регистрация отправлена. Ожидайте подтверждения.');
+    }
+
     localStorage.setItem('save_np_m_name', name);
     localStorage.setItem('save_np_m_phone', phone);
     localStorage.setItem('save_np_m_brigade', brigade);
     localStorage.setItem('logged_np_master_active', 'true');
     localStorage.removeItem('logged_np_service_active');
 
-    loggedMaster = { name: name, phone: phone, brigade: brigade };
-    
     masterLoginBlock.classList.add('hidden');
     masterWorkBlock.classList.remove('hidden');
     loggedMasterBrigade.textContent = brigade;
@@ -766,9 +925,10 @@
 
   document.getElementById('logoutMasterBtn').addEventListener('click', function() {
     localStorage.removeItem('logged_np_master_active');
-    loggedMaster = { name: '', phone: '', brigade: '' };
+    loggedMaster = { name: '', phone: '', brigade: '', status: 'pending' };
     masterLoginBlock.classList.remove('hidden');
     masterWorkBlock.classList.add('hidden');
+    globalPendingAlert.classList.add('hidden');
   });
 
   var loginMasterBrigadeSelect = document.getElementById('loginMasterBrigade');
@@ -777,7 +937,7 @@
   loginMasterBrigadeSelect.innerHTML = bopts;
 
   // ====== ВХОД СЛУЖБЫ ======
-  document.getElementById('loginServiceBtn').addEventListener('click', function() {
+  document.getElementById('loginServiceBtn').addEventListener('click', async function() {
     var name = document.getElementById('loginServiceName').value.trim();
     var phone = document.getElementById('loginServicePhone').value.trim();
     var role = document.getElementById('loginServiceRole').value;
@@ -786,27 +946,49 @@
     if (!phone) { showToast('Введите телефон', true); return; }
     if (!role) { showToast('Выберите службу', true); return; }
 
+    var existingUser = allUsers.find(function(u) { return u.phone === phone; });
+
+    if (existingUser) {
+      if (existingUser.status === 'approved') {
+        var userRef = ref(db, 'users/' + existingUser.id);
+        await update(userRef, { name: name, role: role, brigade: 'Служба' });
+        loggedService = { name: name, phone: phone, role: role, status: 'approved' };
+        showToast('Вы успешно вошли (данные обновлены).');
+      } else if (existingUser.status === 'pending') {
+        loggedService = { name: name, phone: phone, role: role, status: 'pending' };
+        showToast('Ваш аккаунт уже на проверке.', true);
+      } else {
+        showToast('Ваш аккаунт отклонен. Обратитесь к администратору.', true);
+        return;
+      }
+    } else {
+      var newRef = push(ref(db, 'users'));
+      await set(newRef, { name: name, phone: phone, role: role, brigade: 'Служба', status: 'pending', createdAt: Date.now() });
+      loggedService = { name: name, phone: phone, role: role, status: 'pending' };
+      showToast('Регистрация отправлена. Ожидайте подтверждения.');
+    }
+
     localStorage.setItem('save_np_s_name', name);
     localStorage.setItem('save_np_s_phone', phone);
     localStorage.setItem('save_np_s_role', role);
     localStorage.setItem('logged_np_service_active', 'true');
     localStorage.removeItem('logged_np_master_active');
 
-    loggedService = { name: name, phone: phone, role: role };
-    
     serviceLoginBlock.classList.add('hidden');
     serviceWorkBlock.classList.remove('hidden');
     loggedServiceName.textContent = role;
     loggedServicePhone.textContent = name + ', ' + phone;
     
     renderServicesGrid(serviceServicesGrid, 'service');
+    updateUIState();
   });
 
   document.getElementById('logoutServiceBtn').addEventListener('click', function() {
     localStorage.removeItem('logged_np_service_active');
-    loggedService = { name: '', phone: '', role: '' };
+    loggedService = { name: '', phone: '', role: '', status: 'pending' };
     serviceLoginBlock.classList.remove('hidden');
     serviceWorkBlock.classList.add('hidden');
+    servicePendingAlert.classList.add('hidden');
   });
 
   var loginRoleSelect = document.getElementById('loginServiceRole');
@@ -828,7 +1010,11 @@
     isAdminLoggedIn = true;
     adminLoginBlock.classList.add('hidden');
     adminWorkBlock.classList.remove('hidden');
-    renderAdminPanel();
+    
+    adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active');
+    adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden');
+    
+    renderAdminUsers();
   });
 
   document.getElementById('logoutAdminBtn').addEventListener('click', function() {
@@ -864,8 +1050,62 @@
     showToast(newState ? 'Прием заявок остановлен' : 'Прием заявок возобновлен');
   });
 
-  // ====== АДМИН: ОТРИСОВКА ======
-  function renderAdminPanel() {
+  // ====== АДМИН: ОТРИСОВКА ПОЛЬЗОВАТЕЛЕЙ ======
+  function renderAdminUsers() {
+    var usersHtml = '';
+    var sortedUsers = allUsers.slice().sort(function(a,b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+
+    if (!sortedUsers.length) {
+      moderationList.innerHTML = '<p class="empty">Пользователей пока нет.</p>';
+      return;
+    }
+
+    for (var i = 0; i < sortedUsers.length; i++) {
+      var u = sortedUsers[i];
+      var statusClass = u.status === 'approved' ? 'approved' : (u.status === 'rejected' ? 'rejected' : '');
+      var statusText = u.status === 'approved' ? 'Подтвержден' : (u.status === 'rejected' ? 'Отклонен' : 'На проверке');
+      
+      usersHtml += '<div class="moderation-user ' + statusClass + '">';
+      usersHtml += '<div class="info">';
+      usersHtml += '<strong>' + escapeHtml(u.name) + '</strong> (' + escapeHtml(u.phone) + ')<br>';
+      usersHtml += '<span style="font-size:12px; color:#6b7280;">Роль: ' + (u.role === 'master' ? 'Мастер' : 'Служба') + ' | ' + escapeHtml(u.brigade || '—') + ' | ' + statusText + '</span>';
+      usersHtml += '</div>';
+      usersHtml += '<div class="btns">';
+      if (u.status !== 'approved') {
+         usersHtml += '<button class="btn green small" data-uid="' + u.id + '" data-action="approve">Одобрить</button>';
+      }
+      if (u.status !== 'rejected') {
+         usersHtml += '<button class="btn red small" data-uid="' + u.id + '" data-action="reject">Отклонить</button>';
+      }
+      usersHtml += '<button class="btn gray small" data-uid="' + u.id + '" data-action="delete_user" style="background:#dc2626;">Удалить</button>';
+      usersHtml += '</div></div>';
+    }
+    moderationList.innerHTML = usersHtml;
+    
+    var modBtns = moderationList.querySelectorAll('[data-uid]');
+    for (var j = 0; j < modBtns.length; j++) {
+      modBtns[j].addEventListener('click', async function() {
+        var uid = this.getAttribute('data-uid');
+        var action = this.getAttribute('data-action');
+
+        if (action === 'approve') {
+          await update(ref(db, 'users/' + uid), { status: 'approved' });
+          showToast('Пользователь подтвержден');
+        } else if (action === 'reject') {
+          await update(ref(db, 'users/' + uid), { status: 'rejected' });
+          showToast('Пользователь отклонен');
+        } else if (action === 'delete_user') {
+          if (confirm('Вы уверены, что хотите удалить аккаунт? Пользователь больше не сможет войти с этим телефоном.')) {
+            await remove(ref(db, 'users/' + uid));
+            showToast('Аккаунт удален');
+          }
+        }
+      });
+    }
+  }
+
+  // ====== АДМИН: ОТРИСОВКА ЗАЯВОК ======
+  function renderAdminRequests() {
     if (settings.intervals.length > 0) {
       document.getElementById('adminStart1').value = settings.intervals[0].start;
       document.getElementById('adminEnd1').value = settings.intervals[0].end;
@@ -895,8 +1135,8 @@
     if (!list.length) { adminRequestsList.innerHTML = '<p class="empty">Заявок нет.</p>'; return; }
 
     var html = '';
-    for (var i = 0; i < list.length; i++) {
-      var r = list[i];
+    for (var k = 0; k < list.length; k++) {
+      var r = list[k];
       var status = r.status || 'new';
       
       html += '<div class="request status-' + status + '">';
@@ -918,14 +1158,25 @@
       } else {
          html += '<span class="badge ok">Закрыта</span>';
       }
-      html += '<button class="btn red small" data-action="admin_delete" data-id="' + r.id + '">Удалить</button>';
+      html += '<button class="btn red small" data-action="admin_delete" data-id="' + r.id + '">Удалить заявку</button>';
       html += '</div></div>';
     }
     adminRequestsList.innerHTML = html;
 
     var btns = adminRequestsList.querySelectorAll('[data-action]');
-    for (var j = 0; j < btns.length; j++) {
-      btns[j].addEventListener('click', function () { handleAdminAction(this.getAttribute('data-action'), this.getAttribute('data-id')); });
+    for (var m = 0; m < btns.length; m++) {
+      btns[m].addEventListener('click', function () { handleAdminAction(this.getAttribute('data-action'), this.getAttribute('data-id')); });
+    }
+  }
+
+  function renderAdminPanel() {
+    if (!isAdminLoggedIn || adminWorkBlock.classList.contains('hidden')) return;
+    
+    if (!adminUsersBlock.classList.contains('hidden')) {
+      renderAdminUsers();
+    }
+    if (!adminRequestsBlock.classList.contains('hidden')) {
+      renderAdminRequests();
     }
   }
 
@@ -949,7 +1200,7 @@
     }
   }
 
-  // ====== УНИВЕРСАЛЬНАЯ ОТРИСОВКА СЕТКИ СЛУЖБ ======
+  // ====== ОТРИСОВКА СЕТКИ СЛУЖБ ======
   function renderServicesGrid(container, mode) {
     var html = '';
     for (var j = 0; j < SERVICES.length; j++) {
@@ -977,6 +1228,60 @@
       cards[k].addEventListener('click', function () { 
         openServiceDetail(this.getAttribute('data-id'), mode); 
       });
+    }
+  }
+
+  // ====== "МОИ ЗАЯВКИ" ======
+  function renderMyRequests() {
+    if (!loggedMaster.name) {
+      myRequestsList.innerHTML = '<p class="empty">Вы не авторизованы.</p>';
+      return;
+    }
+
+    var myList = allRequests.filter(function(r) { 
+      return r.phone === loggedMaster.phone; 
+    });
+    myList.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+
+    if (!myList.length) { 
+      myRequestsList.innerHTML = '<p class="empty">Вы еще не подавали заявок.</p>'; 
+      return; 
+    }
+
+    var html = '';
+    for (var i = 0; i < myList.length; i++) {
+      var r = myList[i];
+      var status = r.status || 'new';
+      
+      html += '<div class="request status-' + status + '">';
+      html += '<div style="font-size:14px; margin-bottom: 4px;"><strong>Служба: ' + escapeHtml(serviceName(r.serviceId)) + '</strong><br>' + escapeHtml(r.desc) + '</div>';
+      
+      html += '<div class="event-log">';
+      html += '<div>🕒 Подана: ' + formatDate(r.createdAt) + '</div>';
+      if (r.events && r.events.length) {
+        for (var e = 0; e < r.events.length; e++) {
+          var ev = r.events[e];
+          html += '<div>' + escapeHtml(ev.text) + ' (' + formatDate(ev.time) + ')</div>';
+        }
+      }
+      html += '</div>';
+
+      html += '<div class="actions">';
+      if (status === 'service_done') {
+        html += '<button class="btn green small" data-action="closed" data-id="' + r.id + '">Мастер подтвердил</button>';
+        html += '<button class="btn red small" data-action="return" data-id="' + r.id + '">Вернуть</button>';
+      } else if (status === 'closed') {
+        html += '<span class="badge ok">Закрыта</span>';
+      } else if (status === 'new') {
+        html += '<span class="badge" style="background:#6b7280;">Ожидает выполнения</span>';
+      }
+      html += '</div></div>';
+    }
+    myRequestsList.innerHTML = html;
+
+    var btns = myRequestsList.querySelectorAll('[data-action]');
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].addEventListener('click', function () { handleAction(this.getAttribute('data-action'), this.getAttribute('data-id')); });
     }
   }
 
@@ -1067,21 +1372,34 @@
 
     if (action === 'service_done') {
       pendingServiceDoneId = id;
-      servicePasswordInput.value = '';
-      servicePasswordModal.classList.remove('hidden');
-      servicePasswordInput.focus();
+      serviceCodeInput.value = '';
+      serviceCodeModal.classList.remove('hidden');
+      serviceCodeInput.focus();
     } else if (action === 'return') {
       pendingReturnId = id;
       returnCommentInput.value = '';
       returnModal.classList.remove('hidden');
       returnCommentInput.focus();
     } else if (action === 'closed') {
+      // СТРОГАЯ ПРОВЕРКА: перед закрытием проверяем, не удален ли аккаунт мастера
+      var userCheck = allUsers.find(function(u) { return u.phone === loggedMaster.phone; });
+      if (!userCheck || userCheck.status !== 'approved') {
+        showToast('Ваш аккаунт удален или не подтвержден. Вы не можете закрыть заявку.', true);
+        return;
+      }
+
       var updates = {};
       var currentEvents = req.events || [];
-      var newEvent = { text: '🔒 Мастер подтвердил (Бригада: ' + (req.brigade || '—') + ', Мастер: ' + (req.name || '—') + ', Тел: ' + (req.phone || '—') + ')', time: Date.now() };
+      
+      var newEvent = { 
+        text: '🔒 Мастер подтвердил (Бригада: ' + (loggedMaster.brigade || req.brigade || '—') + ', Мастер: ' + (loggedMaster.name || '—') + ', Тел: ' + (loggedMaster.phone || '—') + ')', 
+        time: Date.now() 
+      };
+      
       updates.status = 'closed';
       updates.closedAt = Date.now();
       updates.events = currentEvents.concat([newEvent]);
+      
       await update(ref(db, 'requests/' + id), updates);
       showToast('Мастер подтвердил. Заявка закрыта.');
     } else if (action === 'transfer') {
@@ -1091,20 +1409,31 @@
     }
   }
 
-  confirmServicePasswordBtn.addEventListener('click', async function() {
-    var pwd = servicePasswordInput.value.trim();
-    if (pwd !== SERVICE_PASSWORD) {
-      showToast('Неверный пароль службы', true); 
-      servicePasswordInput.value = ''; 
-      servicePasswordInput.focus(); 
+  confirmServiceCodeBtn.addEventListener('click', async function() {
+    var code = serviceCodeInput.value.trim();
+
+    if (code !== SERVICE_PASSWORD) {
+      showToast('Неверный код службы', true); 
+      serviceCodeInput.value = ''; 
+      serviceCodeInput.focus(); 
+      return;
+    }
+
+    // СТРОГАЯ ПРОВЕРКА: перед выполнением проверяем, не удален ли аккаунт службы
+    var userCheck = allUsers.find(function(u) { return u.phone === loggedService.phone; });
+    if (!userCheck || userCheck.status !== 'approved') {
+      showToast('Ваш аккаунт службы удален или не подтвержден. Вы не можете выполнить заявку.', true);
+      serviceCodeModal.classList.add('hidden');
       return;
     }
 
     var req = allRequests.find(function(item) { return item.id === pendingServiceDoneId; });
-    if (!req) { servicePasswordModal.classList.add('hidden'); return; }
+    if (!req) { serviceCodeModal.classList.add('hidden'); return; }
 
     var currentEvents = req.events || [];
-    var newEvent = { text: '✅ Служба выполнила (Сотрудник: ' + loggedService.name + ', Тел: ' + loggedService.phone + ')', time: Date.now() };
+    var eventText = '✅ Служба выполнила (Сотрудник: ' + loggedService.name + ', Тел: ' + loggedService.phone + ')';
+    
+    var newEvent = { text: eventText, time: Date.now() };
     
     var updates = {
       status: 'service_done',
@@ -1112,14 +1441,14 @@
       events: currentEvents.concat([newEvent])
     };
 
-    servicePasswordModal.classList.add('hidden');
+    serviceCodeModal.classList.add('hidden');
     pendingServiceDoneId = null;
     await update(ref(db, 'requests/' + req.id), updates);
     showToast('Служба подтвердила выполнение. Ждём мастера.');
   });
 
-  cancelServicePasswordBtn.addEventListener('click', function() {
-    servicePasswordModal.classList.add('hidden');
+  cancelServiceCodeBtn.addEventListener('click', function() {
+    serviceCodeModal.classList.add('hidden');
     pendingServiceDoneId = null;
   });
 
@@ -1128,11 +1457,19 @@
     if (!comment) { showToast('Укажите причину возврата', true); return; }
     if (!pendingReturnId) return;
 
+    // Проверка статуса мастера
+    var userCheck = allUsers.find(function(u) { return u.phone === loggedMaster.phone; });
+    if (!userCheck || userCheck.status !== 'approved') {
+      showToast('Ваш аккаунт удален или не подтвержден.', true);
+      returnModal.classList.add('hidden');
+      return;
+    }
+
     var req = allRequests.find(function(item) { return item.id === pendingReturnId; });
     if (!req) return;
 
     var currentEvents = req.events || [];
-    var newEvent = { text: '↩ Возврат в работу (Бригада: ' + (req.brigade || '—') + ', Мастер: ' + (req.name || '—') + ', Тел: ' + (req.phone || '—') + '). Причина: ' + comment, time: Date.now() };
+    var newEvent = { text: '↩ Возврат в работу (Бригада: ' + (loggedMaster.brigade || req.brigade || '—') + ', Мастер: ' + (loggedMaster.name || '—') + ', Тел: ' + (loggedMaster.phone || '—') + '). Причина: ' + comment, time: Date.now() };
 
     var updates = {
       status: 'new',
@@ -1155,6 +1492,14 @@
     if (!pendingTransferId) return;
     var newServiceId = transferServiceSelect.value;
     
+    // Проверка статуса службы
+    var userCheck = allUsers.find(function(u) { return u.phone === loggedService.phone; });
+    if (!userCheck || userCheck.status !== 'approved') {
+      showToast('Ваш аккаунт службы удален или не подтвержден.', true);
+      transferModal.classList.add('hidden');
+      return;
+    }
+
     var req = allRequests.find(function(item) { return item.id === pendingTransferId; });
     if (!req) return;
 
@@ -1202,11 +1547,19 @@
   }
 
   // ====== ОТПРАВКА ЗАЯВКИ (МАСТЕР) ======
-  document.getElementById('requestForm').addEventListener('submit', function (e) {
+  document.getElementById('requestForm').addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    if (!isAcceptingNow()) { showToast('Прием заявок закрыт', true); return; }
     if (!loggedMaster.name) { showToast('Сначала войдите в систему', true); return; }
+
+    // СТРОГАЯ ПРОВЕРКА: перед отправкой проверяем, не удален ли аккаунт
+    var userCheck = allUsers.find(function(u) { return u.phone === loggedMaster.phone; });
+    if (!userCheck || userCheck.status !== 'approved') {
+      showToast('Ваш аккаунт удален или не подтвержден. Вы не можете подать заявку.', true);
+      return;
+    }
+
+    if (!isAcceptingNow()) { showToast('Прием заявок закрыт', true); return; }
 
     var serviceId = selectedServiceId;
     var desc = reqDescEl.value.trim();
@@ -1420,6 +1773,8 @@
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
 
   // ====== СЛУШАЕМ БАЗУ ======
+  
+  // 1. Слушаем заявки
   onValue(ref(db, 'requests'), (snapshot) => {
     var data = snapshot.val();
     allRequests = [];
@@ -1431,6 +1786,9 @@
     
     if (loggedMaster.name && !masterWorkBlock.classList.contains('hidden')) {
       renderServicesGrid(masterServicesGrid, 'master');
+      if (!myRequestsBlock.classList.contains('hidden')) {
+        renderMyRequests();
+      }
     }
     if (loggedService.name && !serviceWorkBlock.classList.contains('hidden')) {
       renderServicesGrid(serviceServicesGrid, 'service');
@@ -1447,6 +1805,7 @@
     renderServicePicker();
   });
 
+  // 2. Слушаем настройки
   onValue(ref(db, 'settings'), (snapshot) => {
     var data = snapshot.val();
     if (data) {
@@ -1458,6 +1817,43 @@
       }
     }
     updateUIState();
+    if (isAdminLoggedIn && !adminWorkBlock.classList.contains('hidden')) {
+      renderAdminPanel();
+    }
+  });
+
+  // 3. Слушаем пользователей
+  onValue(ref(db, 'users'), (snapshot) => {
+    var data = snapshot.val();
+    allUsers = [];
+    if (data) {
+      for (var key in data) {
+        allUsers.push({ id: key, ...data[key] });
+      }
+    }
+
+    // Проверяем статус текущего мастера
+    if (loggedMaster.name) {
+      var currentM = allUsers.find(function(u) { return u.phone === loggedMaster.phone; });
+      if (currentM) {
+        loggedMaster.status = currentM.status;
+      } else {
+        loggedMaster.status = 'rejected'; // Если аккаунт удален, блокируем
+      }
+      updateUIState();
+    }
+    
+    // Проверяем статус текущей службы
+    if (loggedService.name) {
+      var currentS = allUsers.find(function(u) { return u.phone === loggedService.phone; });
+      if (currentS) {
+        loggedService.status = currentS.status;
+      } else {
+        loggedService.status = 'rejected'; // Если аккаунт удален, блокируем
+      }
+      updateUIState();
+    }
+
     if (isAdminLoggedIn && !adminWorkBlock.classList.contains('hidden')) {
       renderAdminPanel();
     }

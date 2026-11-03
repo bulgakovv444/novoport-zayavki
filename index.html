@@ -613,7 +613,7 @@
   // ====== НАСТРОЙКИ ======
   var CHIEF_CODE = '1111';
   var SERVICE_PASSWORD = '1234';
-  var ADMIN_CODE = '1234';  // ← изменено
+  var ADMIN_CODE = '11';  // ← пароль панели управления
 
   // Службы по умолчанию (используются, пока конструктор не сохранил свой список)
   var DEFAULT_SERVICES = [
@@ -1182,7 +1182,6 @@
 
   // ====== КОНСТРУКТОР ГЛАВНОЙ СТРАНИЦЫ ======
   function openConstructor() {
-    // Берём текущий рабочий список служб как черновик
     constructorDraft = SERVICES.map(function(s) { return { id: s.id, name: s.name }; });
     renderConstructor();
     constructorStatus.textContent = '';
@@ -1207,7 +1206,6 @@
     }
     constructorList.innerHTML = html;
 
-    // Обработчики кнопок
     var btns = constructorList.querySelectorAll('[data-action]');
     for (var j = 0; j < btns.length; j++) {
       btns[j].addEventListener('click', function() {
@@ -1230,7 +1228,6 @@
       });
     }
 
-    // Ввод названий
     var nameInputs = constructorList.querySelectorAll('.constructor-name-input');
     for (var k = 0; k < nameInputs.length; k++) {
       nameInputs[k].addEventListener('input', function() {
@@ -1243,7 +1240,6 @@
   addServiceBtn.addEventListener('click', function() {
     var name = newServiceNameInput.value.trim();
     if (!name) { showToast('Введите название службы', true); return; }
-    // Генерируем уникальный id
     var baseId = 'srv_' + Date.now();
     constructorDraft.push({ id: baseId, name: name });
     newServiceNameInput.value = '';
@@ -1256,7 +1252,6 @@
   });
 
   saveServicesBtn.addEventListener('click', async function() {
-    // Валидация
     for (var i = 0; i < constructorDraft.length; i++) {
       if (!constructorDraft[i].name || !constructorDraft[i].name.trim()) {
         showToast('У всех служб должно быть название', true);
@@ -1268,7 +1263,6 @@
       return;
     }
     try {
-      // Сохраняем массив служб в Firebase
       await set(ref(db, 'settings/services'), constructorDraft);
       showToast('Список служб сохранён');
       constructorStatus.textContent = '✅ Сохранено ' + new Date().toLocaleTimeString('ru-RU');
@@ -1659,14 +1653,12 @@
       if (data.isManuallyClosed !== undefined) settings.isManuallyClosed = data.isManuallyClosed;
       if (data.intervals && Array.isArray(data.intervals)) settings.intervals = data.intervals;
 
-      // Загружаем список служб, сохранённый конструктором
       if (data.services && Array.isArray(data.services) && data.services.length) {
         SERVICES = data.services.map(function(s) { return { id: s.id, name: s.name }; });
       } else {
         SERVICES = DEFAULT_SERVICES.slice();
       }
 
-      // Обновляем зависимые элементы
       refreshServiceRoleOptions();
       refreshTransferOptions();
       renderServicePicker();

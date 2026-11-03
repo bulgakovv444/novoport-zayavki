@@ -174,7 +174,7 @@
     position: relative;
   }
   .chat-btn.unread {
-    background: #ef4444 !important; /* Красный, если есть новые */
+    background: #ef4444 !important;
     color: #fff;
     border-color: #dc2626 !important;
   }
@@ -283,11 +283,23 @@
   .modal {
     background: #fff; border-radius: 10px; padding: 20px; max-width: 600px; width: 100%;
     box-shadow: 0 20px 50px rgba(0,0,0,.3);
+    max-height: 90vh; overflow-y: auto;
   }
   .modal h3 { font-size: 16px; margin-bottom: 6px; }
   .modal p { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
   .modal input, .modal textarea, .modal select { margin-bottom: 12px; }
   .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Конструктор */
+  .constructor-item {
+    display: flex; align-items: center; gap: 8px; background: #f9fafb;
+    padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid #e5e7eb;
+  }
+  .constructor-item input { flex: 1; margin: 0; }
+  .constructor-item .drag-handle { cursor: grab; color: #9ca3af; font-size: 16px; padding: 0 4px; }
+  .constructor-add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .constructor-add-row input { flex: 1; margin: 0; }
+  .constructor-hint { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -456,6 +468,7 @@
       <div class="sub-tabs" style="margin-bottom: 20px;">
         <button class="sub-tab-btn active" id="adminTabUsers">👥 Пользователи</button>
         <button class="sub-tab-btn" id="adminTabRequests">📝 Заявки</button>
+        <button class="sub-tab-btn" id="adminTabConstructor">🎨 Конструктор</button>
       </div>
 
       <div id="adminUsersBlock">
@@ -482,6 +495,27 @@
         </div>
         <h2>Все заявки (полный доступ)</h2>
         <div id="adminRequestsList"></div>
+      </div>
+
+      <!-- КОНСТРУКТОР ГЛАВНОЙ СТРАНИЦЫ -->
+      <div id="adminConstructorBlock" class="hidden">
+        <div class="card" style="border-left: 4px solid #8b5cf6;">
+          <h2>🎨 Конструктор главной страницы</h2>
+          <p class="constructor-hint">
+            Здесь вы можете управлять списком служб, которые отображаются на главной странице у мастеров и служб.
+            Меняйте названия, добавляйте новые, удаляйте лишние. Изменения сохраняются в базе и сразу применяются.
+          </p>
+          <div id="constructorList"></div>
+          <div class="constructor-add-row">
+            <input type="text" id="newServiceNameInput" placeholder="Название новой службы, например «Склад»">
+            <button class="btn green" id="addServiceBtn">Добавить службу</button>
+          </div>
+          <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn purple small" id="saveServicesBtn">💾 Сохранить изменения</button>
+            <button class="btn gray small" id="reloadServicesBtn">↻ Сбросить к текущему</button>
+          </div>
+          <div style="margin-top: 12px; font-size: 12px; color: #6b7280;" id="constructorStatus"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -579,9 +613,10 @@
   // ====== НАСТРОЙКИ ======
   var CHIEF_CODE = '1111';
   var SERVICE_PASSWORD = '1234';
-  var ADMIN_CODE = '3452admin';
+  var ADMIN_CODE = '1234';  // ← изменено
 
-  var SERVICES = [
+  // Службы по умолчанию (используются, пока конструктор не сохранил свой список)
+  var DEFAULT_SERVICES = [
     { id: 'bpo',      name: 'БПО' },
     { id: 'sge',      name: 'СГЭ' },
     { id: 'kip',      name: 'КИПиА' },
@@ -592,7 +627,8 @@
     { id: 'cpskr',    name: 'ЦПСКР' },
     { id: 'cits',     name: 'ЦИТС' }
   ];
-  
+  var SERVICES = DEFAULT_SERVICES.slice();
+
   var BRIGADES = [
     'Исполнительный директор',
     'Главный энергетик', 
@@ -628,6 +664,9 @@
   var currentDetailServiceId = '';
   var currentDetailViewMode = 'master';
 
+  // Черновик конструктора (локальная копия списка служб для редактирования)
+  var constructorDraft = [];
+
   // ====== ЭЛЕМЕНТЫ ======
   var tabMaster = document.getElementById('tabMaster');
   var tabService = document.getElementById('tabService');
@@ -661,8 +700,10 @@
   var adminWorkBlock = document.getElementById('adminWorkBlock');
   var adminUsersBlock = document.getElementById('adminUsersBlock');
   var adminRequestsBlock = document.getElementById('adminRequestsBlock');
+  var adminConstructorBlock = document.getElementById('adminConstructorBlock');
   var adminTabUsers = document.getElementById('adminTabUsers');
   var adminTabRequests = document.getElementById('adminTabRequests');
+  var adminTabConstructor = document.getElementById('adminTabConstructor');
   var adminRequestsList = document.getElementById('adminRequestsList');
   var adminStatusText = document.getElementById('adminStatusText');
   var globalClosedAlert = document.getElementById('globalClosedAlert');
@@ -705,6 +746,13 @@
   var chatInput = document.getElementById('chatInput');
   var sendChatBtn = document.getElementById('sendChatBtn');
   var closeChatBtn = document.getElementById('closeChatBtn');
+
+  var constructorList = document.getElementById('constructorList');
+  var newServiceNameInput = document.getElementById('newServiceNameInput');
+  var addServiceBtn = document.getElementById('addServiceBtn');
+  var saveServicesBtn = document.getElementById('saveServicesBtn');
+  var reloadServicesBtn = document.getElementById('reloadServicesBtn');
+  var constructorStatus = document.getElementById('constructorStatus');
 
   // ====== ВСПОМОГАТЕЛЬНЫЕ ======
   function showToast(msg, isError) {
@@ -842,8 +890,20 @@
   subTabNewRequest.addEventListener('click', function() { subTabNewRequest.classList.add('active'); subTabMyRequests.classList.remove('active'); newRequestBlock.classList.remove('hidden'); myRequestsBlock.classList.add('hidden'); });
   subTabMyRequests.addEventListener('click', function() { subTabMyRequests.classList.add('active'); subTabNewRequest.classList.remove('active'); newRequestBlock.classList.add('hidden'); myRequestsBlock.classList.remove('hidden'); renderMyRequests(); });
 
-  adminTabUsers.addEventListener('click', function() { adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active'); adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden'); });
-  adminTabRequests.addEventListener('click', function() { adminTabRequests.classList.add('active'); adminTabUsers.classList.remove('active'); adminUsersBlock.classList.add('hidden'); adminRequestsBlock.classList.remove('hidden'); renderAdminRequests(); });
+  adminTabUsers.addEventListener('click', function() { 
+    adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active'); adminTabConstructor.classList.remove('active');
+    adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden'); adminConstructorBlock.classList.add('hidden'); 
+  });
+  adminTabRequests.addEventListener('click', function() { 
+    adminTabRequests.classList.add('active'); adminTabUsers.classList.remove('active'); adminTabConstructor.classList.remove('active');
+    adminUsersBlock.classList.add('hidden'); adminRequestsBlock.classList.remove('hidden'); adminConstructorBlock.classList.add('hidden');
+    renderAdminRequests(); 
+  });
+  adminTabConstructor.addEventListener('click', function() { 
+    adminTabConstructor.classList.add('active'); adminTabUsers.classList.remove('active'); adminTabRequests.classList.remove('active');
+    adminUsersBlock.classList.add('hidden'); adminRequestsBlock.classList.add('hidden'); adminConstructorBlock.classList.remove('hidden');
+    openConstructor(); 
+  });
 
   // ====== АВТОВХОД ======
   function loadSavedCredentials() {
@@ -973,9 +1033,20 @@
   for (var i = 0; i < SERVICES.length; i++) roleOpts += '<option value="' + SERVICES[i].name + '">' + SERVICES[i].name + '</option>';
   loginRoleSelect.innerHTML = roleOpts;
 
-  var transferOpts = '';
-  for (var i = 0; i < SERVICES.length; i++) transferOpts += '<option value="' + SERVICES[i].id + '">' + SERVICES[i].name + '</option>';
-  transferServiceSelect.innerHTML = transferOpts;
+  function refreshTransferOptions() {
+    var transferOpts = '';
+    for (var i = 0; i < SERVICES.length; i++) transferOpts += '<option value="' + SERVICES[i].id + '">' + SERVICES[i].name + '</option>';
+    transferServiceSelect.innerHTML = transferOpts;
+  }
+  refreshTransferOptions();
+
+  function refreshServiceRoleOptions() {
+    var current = loginRoleSelect.value;
+    var roleOpts = '<option value="">— выберите вашу службу —</option>';
+    for (var i = 0; i < SERVICES.length; i++) roleOpts += '<option value="' + SERVICES[i].name + '">' + SERVICES[i].name + '</option>';
+    loginRoleSelect.innerHTML = roleOpts;
+    if (current) loginRoleSelect.value = current;
+  }
 
   // ====== ВХОД АДМИНА ======
   document.getElementById('adminLoginBtn').addEventListener('click', function() {
@@ -983,8 +1054,8 @@
     if (code !== ADMIN_CODE) { showToast('Неверный код доступа', true); return; }
     isAdminLoggedIn = true;
     adminLoginBlock.classList.add('hidden'); adminWorkBlock.classList.remove('hidden');
-    adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active');
-    adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden');
+    adminTabUsers.classList.add('active'); adminTabRequests.classList.remove('active'); adminTabConstructor.classList.remove('active');
+    adminUsersBlock.classList.remove('hidden'); adminRequestsBlock.classList.add('hidden'); adminConstructorBlock.classList.add('hidden');
     renderAdminUsers();
   });
 
@@ -1095,6 +1166,7 @@
     if (!isAdminLoggedIn || adminWorkBlock.classList.contains('hidden')) return;
     if (!adminUsersBlock.classList.contains('hidden')) renderAdminUsers();
     if (!adminRequestsBlock.classList.contains('hidden')) renderAdminRequests();
+    if (!adminConstructorBlock.classList.contains('hidden')) renderConstructor();
   }
 
   async function handleAdminAction(action, id) {
@@ -1108,6 +1180,109 @@
     }
   }
 
+  // ====== КОНСТРУКТОР ГЛАВНОЙ СТРАНИЦЫ ======
+  function openConstructor() {
+    // Берём текущий рабочий список служб как черновик
+    constructorDraft = SERVICES.map(function(s) { return { id: s.id, name: s.name }; });
+    renderConstructor();
+    constructorStatus.textContent = '';
+  }
+
+  function renderConstructor() {
+    if (!constructorDraft.length) {
+      constructorList.innerHTML = '<p class="empty">Список служб пуст. Добавьте первую службу ниже.</p>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < constructorDraft.length; i++) {
+      var s = constructorDraft[i];
+      html += '<div class="constructor-item" data-index="' + i + '">';
+      html += '<span class="drag-handle" title="Порядок">≡</span>';
+      html += '<input type="text" class="constructor-name-input" data-index="' + i + '" value="' + escapeHtml(s.name) + '" placeholder="Название службы">';
+      html += '<span style="font-size:11px; color:#9ca3af; white-space:nowrap;">ID: ' + escapeHtml(s.id) + '</span>';
+      html += '<button class="btn red small" data-index="' + i + '" data-action="remove_service">✕</button>';
+      html += '<button class="btn gray small" data-index="' + i + '" data-action="up_service">↑</button>';
+      html += '<button class="btn gray small" data-index="' + i + '" data-action="down_service">↓</button>';
+      html += '</div>';
+    }
+    constructorList.innerHTML = html;
+
+    // Обработчики кнопок
+    var btns = constructorList.querySelectorAll('[data-action]');
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].addEventListener('click', function() {
+        var idx = parseInt(this.getAttribute('data-index'));
+        var action = this.getAttribute('data-action');
+        if (action === 'remove_service') {
+          constructorDraft.splice(idx, 1);
+          renderConstructor();
+        } else if (action === 'up_service' && idx > 0) {
+          var tmp = constructorDraft[idx - 1];
+          constructorDraft[idx - 1] = constructorDraft[idx];
+          constructorDraft[idx] = tmp;
+          renderConstructor();
+        } else if (action === 'down_service' && idx < constructorDraft.length - 1) {
+          var tmp2 = constructorDraft[idx + 1];
+          constructorDraft[idx + 1] = constructorDraft[idx];
+          constructorDraft[idx] = tmp2;
+          renderConstructor();
+        }
+      });
+    }
+
+    // Ввод названий
+    var nameInputs = constructorList.querySelectorAll('.constructor-name-input');
+    for (var k = 0; k < nameInputs.length; k++) {
+      nameInputs[k].addEventListener('input', function() {
+        var idx = parseInt(this.getAttribute('data-index'));
+        constructorDraft[idx].name = this.value;
+      });
+    }
+  }
+
+  addServiceBtn.addEventListener('click', function() {
+    var name = newServiceNameInput.value.trim();
+    if (!name) { showToast('Введите название службы', true); return; }
+    // Генерируем уникальный id
+    var baseId = 'srv_' + Date.now();
+    constructorDraft.push({ id: baseId, name: name });
+    newServiceNameInput.value = '';
+    renderConstructor();
+    showToast('Служба добавлена в черновик. Не забудьте сохранить.');
+  });
+
+  newServiceNameInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addServiceBtn.click(); }
+  });
+
+  saveServicesBtn.addEventListener('click', async function() {
+    // Валидация
+    for (var i = 0; i < constructorDraft.length; i++) {
+      if (!constructorDraft[i].name || !constructorDraft[i].name.trim()) {
+        showToast('У всех служб должно быть название', true);
+        return;
+      }
+    }
+    if (!constructorDraft.length) {
+      showToast('Список служб не может быть пустым', true);
+      return;
+    }
+    try {
+      // Сохраняем массив служб в Firebase
+      await set(ref(db, 'settings/services'), constructorDraft);
+      showToast('Список служб сохранён');
+      constructorStatus.textContent = '✅ Сохранено ' + new Date().toLocaleTimeString('ru-RU');
+    } catch (err) {
+      showToast('Ошибка сохранения', true);
+    }
+  });
+
+  reloadServicesBtn.addEventListener('click', function() {
+    constructorDraft = SERVICES.map(function(s) { return { id: s.id, name: s.name }; });
+    renderConstructor();
+    showToast('Черновик сброшен к текущему списку');
+  });
+
   // ====== СЕТКА СЛУЖБ ======
   function renderServicesGrid(container, mode) {
     var html = '';
@@ -1118,7 +1293,7 @@
       if (nWait > 0) cardClass += ' has-wait';
       html += '<div class="' + cardClass + '" data-id="' + s.id + '">';
       if (nNew > 0) html += '<span class="dot"></span>';
-      html += '<h3>' + s.name + '</h3><div class="badges-wrap">';
+      html += '<h3>' + escapeHtml(s.name) + '</h3><div class="badges-wrap">';
       if (nNew > 0) html += '<span class="badge">' + nNew + ' новых</span>';
       if (nWait > 0) html += '<span class="badge wait">' + nWait + ' ждут мастера</span>';
       if (nNew === 0 && nWait === 0) html += '<span class="badge ok">Нет заявок</span>';
@@ -1336,7 +1511,7 @@
     var html = '';
     for (var i = 0; i < SERVICES.length; i++) {
       var s = SERVICES[i]; var active = (s.id === selectedServiceId) ? ' active' : '';
-      html += '<button type="button" class="service-pick-btn' + active + '" data-id="' + s.id + '">' + s.name + '</button>';
+      html += '<button type="button" class="service-pick-btn' + active + '" data-id="' + s.id + '">' + escapeHtml(s.name) + '</button>';
     }
     servicePicker.innerHTML = html;
     var btns = servicePicker.querySelectorAll('.service-pick-btn');
@@ -1405,7 +1580,7 @@
     var fs = document.getElementById('filterService'); var fb = document.getElementById('filterBrigade');
     var fsVal = fs.value; var fbVal = fb.value;
     var sopts = '<option value="">Все службы</option>';
-    for (var i = 0; i < SERVICES.length; i++) sopts += '<option value="' + SERVICES[i].id + '">' + SERVICES[i].name + '</option>';
+    for (var i = 0; i < SERVICES.length; i++) sopts += '<option value="' + SERVICES[i].id + '">' + escapeHtml(SERVICES[i].name) + '</option>';
     fs.innerHTML = sopts; fs.value = fsVal;
     var bopts = '<option value="">Все бригады</option>';
     for (var b = 0; b < BRIGADES.length; b++) bopts += '<option value="' + BRIGADES[b] + '">' + BRIGADES[b] + '</option>';
@@ -1483,6 +1658,22 @@
     if (data) {
       if (data.isManuallyClosed !== undefined) settings.isManuallyClosed = data.isManuallyClosed;
       if (data.intervals && Array.isArray(data.intervals)) settings.intervals = data.intervals;
+
+      // Загружаем список служб, сохранённый конструктором
+      if (data.services && Array.isArray(data.services) && data.services.length) {
+        SERVICES = data.services.map(function(s) { return { id: s.id, name: s.name }; });
+      } else {
+        SERVICES = DEFAULT_SERVICES.slice();
+      }
+
+      // Обновляем зависимые элементы
+      refreshServiceRoleOptions();
+      refreshTransferOptions();
+      renderServicePicker();
+      if (loggedMaster.name && !masterWorkBlock.classList.contains('hidden')) renderServicesGrid(masterServicesGrid, 'master');
+      if (loggedService.name && !serviceWorkBlock.classList.contains('hidden')) renderServicesGrid(serviceServicesGrid, 'service');
+      if (currentDetailServiceId && !requestsDetailView.classList.contains('hidden')) renderDetailRequests(currentDetailServiceId, currentDetailViewMode);
+      if (!historyView.classList.contains('hidden')) renderHistory();
     }
     updateUIState();
     if (isAdminLoggedIn && !adminWorkBlock.classList.contains('hidden')) renderAdminPanel();
